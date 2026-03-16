@@ -44,6 +44,7 @@ const IwdModule = lazy(() => import("./Modules/Iwd/index"));
 const IwdWorkPage = lazy(
   () => import("./Modules/Iwd/components/managebills/index"),
 );
+const VmsDemo = lazy(() => import("./pages/vmsDemo"));
 
 const Dashboard = lazy(
   () => import("./Modules/Dashboard/dashboardNotifications"),
@@ -562,6 +563,16 @@ export default function App() {
             <Layout>
               <Suspense fallback={<div>Loading .... </div>}>
                 <OtherAcadProcedures />
+              </Suspense>
+            </Layout>
+          }
+        />
+        <Route
+          path="/vms-demo"
+          element={
+            <Layout>
+              <Suspense fallback={<div>Loading .... </div>}>
+                <VmsDemo />
               </Suspense>
             </Layout>
           }
