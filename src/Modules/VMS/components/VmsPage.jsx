@@ -1,8 +1,8 @@
 import { Container, Divider, Title } from "@mantine/core";
 import { useEffect, useState } from "react";
-import VmsForm from "../components/forms/VmsForm";
-import VmsTable from "../components/tables/VmsTable";
-import LoadingSpinner from "../components/common/LoadingSpinner";
+import VmsForm from "./VmsForm";
+import VmsTable from "./VmsTable";
+import LoadingSpinner from "./LoadingSpinner";
 import {
   registerVisitor,
   verifyVisitor,
@@ -14,7 +14,7 @@ import {
   fetchRecentVisits,
   fetchIncidents,
   logIncident,
-} from "../services/api";
+} from "./api";
 import {
   defaultIncidentPayload,
   defaultRegisterPayload,
@@ -24,8 +24,8 @@ import {
   buildOperationalReport,
   createIncidentRecord,
   parseVisitorRecords,
-} from "../utils/helpers";
-import "../styles/module.css";
+} from "./helpers";
+import "./module.css";
 
 function VmsPage() {
   const [registerPayload, setRegisterPayload] = useState(

@@ -27,8 +27,8 @@ import {
   vipAccessOptions,
   incidentTypeOptions,
   zoneOptions,
-} from "../../utils/helpers";
-import "../../styles/module.css";
+} from "./helpers";
+import "./module.css";
 
 function VmsForm({
   metrics,

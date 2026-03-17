@@ -44,7 +44,7 @@ const IwdModule = lazy(() => import("./Modules/Iwd/index"));
 const IwdWorkPage = lazy(
   () => import("./Modules/Iwd/components/managebills/index"),
 );
-const VmsDemo = lazy(() => import("./pages/vmsDemo"));
+const VmsDemo = lazy(() => import("./Modules/VMS"));
 
 const Dashboard = lazy(
   () => import("./Modules/Dashboard/dashboardNotifications"),

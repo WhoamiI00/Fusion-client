@@ -1,3 +1,3 @@
-import VmsPage from "./pages/VmsPage";
+import VmsPage from "./components/VmsPage";
 
 export default VmsPage;
