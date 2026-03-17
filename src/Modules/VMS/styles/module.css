@@ -1,0 +1,51 @@
+.vmsPage {
+  width: 100%;
+  font-family: "Segoe UI", "Trebuchet MS", "Verdana", sans-serif;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(66, 153, 225, 0.08), transparent 28%),
+    radial-gradient(circle at 90% 20%, rgba(251, 191, 36, 0.12), transparent 26%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0.75), rgba(241, 245, 249, 0.65));
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.responseBlock {
+  max-height: 18rem;
+  overflow: auto;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.vmsHero {
+  border: 1px solid #bfdbfe;
+  background: linear-gradient(120deg, #eff6ff 0%, #f8fafc 60%, #fffbeb 100%);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+}
+
+.vmsEyebrow {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.vmsTabs [role="tab"] {
+  font-weight: 600;
+}
+
+.vmsMetricCard {
+  border: 1px solid #dbeafe;
+  background: rgba(255, 255, 255, 0.75);
+  transition: transform 140ms ease;
+}
+
+.vmsMetricCard:hover {
+  transform: translateY(-2px);
+}
+
+.vmsGridPanel {
+  min-height: 360px;
+}
