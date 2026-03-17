@@ -76,6 +76,7 @@ function VmsForm({
   onTogglePersonnelStatus,
   onAddVipPermission,
   onToggleVipPermission,
+  passQrCode,
 }) {
   return (
     <Stack gap="lg">
@@ -325,6 +326,19 @@ function VmsForm({
                     Record Exit
                   </Button>
                 </Group>
+                {passQrCode && (
+                  <Paper withBorder p="md" radius="md" mt="sm">
+                    <Title order={5}>Visitor Pass QR Code</Title>
+                    <Text size="xs" c="dimmed" mb="sm">
+                      Scan this QR to verify the pass at any gate.
+                    </Text>
+                    <img
+                      src={passQrCode}
+                      alt="Visitor Pass QR Code"
+                      style={{ maxWidth: 200, display: "block" }}
+                    />
+                  </Paper>
+                )}
                 <Group grow>
                   <Select
                     label="Deny Reason"
@@ -625,11 +639,13 @@ VmsForm.propTypes = {
   onTogglePersonnelStatus: PropTypes.func.isRequired,
   onAddVipPermission: PropTypes.func.isRequired,
   onToggleVipPermission: PropTypes.func.isRequired,
+  passQrCode: PropTypes.string,
 };
 
 VmsForm.defaultProps = {
   currentVisitStatus: null,
   actionStatus: null,
+  passQrCode: null,
 };
 
 export default VmsForm;

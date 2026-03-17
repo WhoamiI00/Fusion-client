@@ -56,6 +56,7 @@ function VmsPage() {
   const [actionStatus, setActionStatus] = useState(null);
   const [currentVisitStatus, setCurrentVisitStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [passQrCode, setPassQrCode] = useState(null);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -243,12 +244,15 @@ function VmsPage() {
           authorized_zones: authorizedZones,
         }),
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
           patchVisitorRecord(visitId, {
             status: "pass_issued",
             authorized_zones: authorizedZones,
           });
           setCurrentVisitStatus("pass_issued");
+          if (data?.qr_code) {
+            setPassQrCode(data.qr_code);
+          }
         },
       },
     );
@@ -508,6 +512,7 @@ function VmsPage() {
         onTogglePersonnelStatus={onTogglePersonnelStatus}
         onAddVipPermission={onAddVipPermission}
         onToggleVipPermission={onToggleVipPermission}
+        passQrCode={passQrCode}
       />
       <Divider my="lg" />
       <VmsTable
