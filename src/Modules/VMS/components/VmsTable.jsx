@@ -1,5 +1,6 @@
 import {
   Badge,
+  Button,
   Group,
   Paper,
   ScrollArea,
@@ -9,6 +10,11 @@ import {
   Title,
 } from "@mantine/core";
 import PropTypes from "prop-types";
+import {
+  exportVisitorRecordsPdf,
+  exportSecuritySnapshotPdf,
+  exportRecentlyRegisteredPdf,
+} from "./vmsExportPdf";
 
 function VmsTable({ visitorRows, recentRegistrations, incidents, staff }) {
   const onDutyCount = staff.filter(
@@ -20,9 +26,19 @@ function VmsTable({ visitorRows, recentRegistrations, incidents, staff }) {
       <Paper withBorder p="md" radius="md" className="vmsGridPanel">
         <Group justify="space-between" mb="xs">
           <Title order={4}>Visitor Records</Title>
-          <Badge color="blue" variant="light">
-            {visitorRows.length} active
-          </Badge>
+          <Group gap="xs">
+            <Badge color="blue" variant="light">
+              {visitorRows.length} active
+            </Badge>
+            <Button
+              size="xs"
+              variant="light"
+              color="blue"
+              onClick={() => exportVisitorRecordsPdf(visitorRows)}
+            >
+              Export PDF
+            </Button>
+          </Group>
         </Group>
         {visitorRows.length === 0 ? (
           <Text size="sm" c="dimmed" mt="sm">
@@ -61,9 +77,19 @@ function VmsTable({ visitorRows, recentRegistrations, incidents, staff }) {
       <Paper withBorder p="md" radius="md" className="vmsGridPanel">
         <Group justify="space-between" mb="xs">
           <Title order={4}>Security Snapshot</Title>
-          <Badge color={onDutyCount < 2 ? "red" : "green"} variant="light">
-            {onDutyCount} on-duty
-          </Badge>
+          <Group gap="xs">
+            <Badge color={onDutyCount < 2 ? "red" : "green"} variant="light">
+              {onDutyCount} on-duty
+            </Badge>
+            <Button
+              size="xs"
+              variant="light"
+              color="red"
+              onClick={() => exportSecuritySnapshotPdf(incidents, staff)}
+            >
+              Export PDF
+            </Button>
+          </Group>
         </Group>
         <Text size="sm" fw={600} mb="xs">
           Recent Incident Log
@@ -123,9 +149,19 @@ function VmsTable({ visitorRows, recentRegistrations, incidents, staff }) {
       <Paper withBorder p="md" radius="md" className="vmsGridPanel">
         <Group justify="space-between" mb="xs">
           <Title order={4}>Recently Registered</Title>
-          <Badge color="indigo" variant="light">
-            Last 5
-          </Badge>
+          <Group gap="xs">
+            <Badge color="indigo" variant="light">
+              Last 5
+            </Badge>
+            <Button
+              size="xs"
+              variant="light"
+              color="indigo"
+              onClick={() => exportRecentlyRegisteredPdf(recentRegistrations)}
+            >
+              Export PDF
+            </Button>
+          </Group>
         </Group>
 
         {recentRegistrations.length === 0 ? (
