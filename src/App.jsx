@@ -45,6 +45,12 @@ const IwdWorkPage = lazy(
   () => import("./Modules/Iwd/components/managebills/index"),
 );
 const VmsDemo = lazy(() => import("./Modules/VMS"));
+const VmsDemoStaff = lazy(() =>
+  import("./Modules/VMS").then((m) => ({ default: m.VmsStaffPage })),
+);
+const VmsDemoAdmin = lazy(() =>
+  import("./Modules/VMS").then((m) => ({ default: m.VmsAdminPage })),
+);
 
 const Dashboard = lazy(
   () => import("./Modules/Dashboard/dashboardNotifications"),
@@ -573,6 +579,26 @@ export default function App() {
             <Layout>
               <Suspense fallback={<div>Loading .... </div>}>
                 <VmsDemo />
+              </Suspense>
+            </Layout>
+          }
+        />
+        <Route
+          path="/vms-demo-staff"
+          element={
+            <Layout>
+              <Suspense fallback={<div>Loading .... </div>}>
+                <VmsDemoStaff />
+              </Suspense>
+            </Layout>
+          }
+        />
+        <Route
+          path="/vms-demo-admin"
+          element={
+            <Layout>
+              <Suspense fallback={<div>Loading .... </div>}>
+                <VmsDemoAdmin />
               </Suspense>
             </Layout>
           }
