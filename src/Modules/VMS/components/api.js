@@ -51,3 +51,11 @@ export const fetchVisitorHistoryById = (idNumber) =>
 
 export const fetchVisitorHistoryByVisit = (visitId) =>
   getClient().get(`/vms/visit-history/${encodeURIComponent(visitId)}/`);
+
+export const fetchBlacklist = () => getClient().get("/vms/blacklist/");
+
+export const addToBlacklist = (payload) =>
+  getClient().post("/vms/blacklist/", payload);
+
+export const removeFromBlacklist = (entryId) =>
+  getClient().post(`/vms/blacklist/${encodeURIComponent(entryId)}/remove/`);

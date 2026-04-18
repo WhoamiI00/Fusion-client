@@ -15,6 +15,9 @@ import {
   generateReport,
   importVisitors,
   fetchVisitorHistoryByVisit,
+  fetchBlacklist,
+  addToBlacklist,
+  removeFromBlacklist,
 } from "./api";
 import {
   exportOperationalReportPdf,
@@ -74,6 +77,12 @@ export default function useVmsController() {
   );
   const [importResult, setImportResult] = useState(null);
   const [historyVisitIdInput, setHistoryVisitIdInput] = useState("");
+  const [blacklistEntries, setBlacklistEntries] = useState([]);
+  const [blacklistForm, setBlacklistForm] = useState({
+    id_number: "",
+    reason: "",
+    evidence: "",
+  });
   const [actionStatus, setActionStatus] = useState(null);
   const [currentVisitStatus, setCurrentVisitStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -83,12 +92,13 @@ export default function useVmsController() {
     const loadInitialData = async () => {
       setIsLoading(true);
       try {
-        const [activeRes, recentRes, incidentsRes, vipRes] =
+        const [activeRes, recentRes, incidentsRes, vipRes, blacklistRes] =
           await Promise.allSettled([
             fetchActiveVisitors(),
             fetchRecentVisits(5),
             fetchIncidents(20),
             fetchVipVisitors(),
+            fetchBlacklist(),
           ]);
 
         if (activeRes.status === "fulfilled") {
@@ -139,6 +149,13 @@ export default function useVmsController() {
               active: v.status !== "exited" && v.status !== "denied",
             })),
           );
+        }
+
+        if (blacklistRes.status === "fulfilled") {
+          const entries = Array.isArray(blacklistRes.value.data)
+            ? blacklistRes.value.data
+            : [];
+          setBlacklistEntries(entries);
         }
       } finally {
         setIsLoading(false);
@@ -543,6 +560,50 @@ export default function useVmsController() {
     );
   };
 
+  const onAddToBlacklist = () => {
+    const idNumber = blacklistForm.id_number.trim();
+    const reason = blacklistForm.reason.trim();
+    if (!idNumber || !reason) {
+      setActionStatus({
+        type: "error",
+        message: "blacklist-add failed: ID number and reason are required",
+      });
+      return;
+    }
+    execute(
+      "blacklist-add",
+      () =>
+        addToBlacklist({
+          id_number: idNumber,
+          reason,
+          evidence: blacklistForm.evidence.trim(),
+        }),
+      {
+        onSuccess: (data) => {
+          if (data && data.id) {
+            setBlacklistEntries((previous) => [
+              data,
+              ...previous.filter((entry) => entry.id !== data.id),
+            ]);
+          }
+          setBlacklistForm({ id_number: "", reason: "", evidence: "" });
+        },
+      },
+    );
+  };
+
+  const onRemoveFromBlacklist = (entryId) => {
+    execute("blacklist-remove", () => removeFromBlacklist(entryId), {
+      onSuccess: () => {
+        setBlacklistEntries((previous) =>
+          previous.map((entry) =>
+            entry.id === entryId ? { ...entry, active: false } : entry,
+          ),
+        );
+      },
+    });
+  };
+
   const onAddSecurityPersonnel = () => {
     if (!newStaffName.trim()) {
       setActionStatus({
@@ -688,6 +749,9 @@ export default function useVmsController() {
     importResult,
     historyVisitIdInput,
     setHistoryVisitIdInput,
+    blacklistEntries,
+    blacklistForm,
+    setBlacklistForm,
     actionStatus,
     currentVisitStatus,
     isLoading,
@@ -709,5 +773,7 @@ export default function useVmsController() {
     onImportVisitors,
     onExportVisitorHistory,
     onDownloadReportPdf,
+    onAddToBlacklist,
+    onRemoveFromBlacklist,
   };
 }

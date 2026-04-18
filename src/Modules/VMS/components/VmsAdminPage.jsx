@@ -189,6 +189,100 @@ function VmsAdminPage() {
         </Paper>
 
         <Paper withBorder p="md" radius="md">
+          <Title order={4}>Manage Blacklist</Title>
+          <Text size="sm" c="dimmed" mt={4}>
+            Add or remove blacklist entries. Adding requires VMS admin
+            privileges. Removal deactivates the entry and is recorded in the
+            audit log.
+          </Text>
+          <Group mt="sm" align="end" grow>
+            <TextInput
+              label="ID Number"
+              placeholder="e.g. DL-09-88442"
+              value={ctrl.blacklistForm.id_number}
+              onChange={(event) =>
+                ctrl.setBlacklistForm({
+                  ...ctrl.blacklistForm,
+                  id_number: event.currentTarget.value,
+                })
+              }
+            />
+            <TextInput
+              label="Reason"
+              placeholder="e.g. Watchlist match"
+              value={ctrl.blacklistForm.reason}
+              onChange={(event) =>
+                ctrl.setBlacklistForm({
+                  ...ctrl.blacklistForm,
+                  reason: event.currentTarget.value,
+                })
+              }
+            />
+            <TextInput
+              label="Evidence (optional)"
+              placeholder="Reference / case number"
+              value={ctrl.blacklistForm.evidence}
+              onChange={(event) =>
+                ctrl.setBlacklistForm({
+                  ...ctrl.blacklistForm,
+                  evidence: event.currentTarget.value,
+                })
+              }
+            />
+            <Button color="red" onClick={ctrl.onAddToBlacklist}>
+              Add to Blacklist
+            </Button>
+          </Group>
+          <Stack mt="md" gap="xs">
+            {ctrl.blacklistEntries.length === 0 && (
+              <Text size="sm" c="dimmed">
+                No blacklist entries loaded.
+              </Text>
+            )}
+            {ctrl.blacklistEntries.map((entry) => (
+              <Group key={entry.id} justify="space-between" align="start">
+                <div style={{ flex: 1 }}>
+                  <Text size="sm" fw={600}>
+                    {entry.id_number}{" "}
+                    <Badge
+                      size="xs"
+                      color={entry.active ? "red" : "gray"}
+                      variant={entry.active ? "filled" : "light"}
+                      ml="xs"
+                    >
+                      {entry.active ? "active" : "removed"}
+                    </Badge>
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {entry.reason}
+                  </Text>
+                  {entry.evidence && (
+                    <Text size="xs" c="dimmed">
+                      Evidence: {entry.evidence}
+                    </Text>
+                  )}
+                  <Text size="xs" c="dimmed">
+                    {entry.created_at
+                      ? new Date(entry.created_at).toLocaleString()
+                      : "-"}
+                  </Text>
+                </div>
+                {entry.active && (
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="gray"
+                    onClick={() => ctrl.onRemoveFromBlacklist(entry.id)}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </Group>
+            ))}
+          </Stack>
+        </Paper>
+
+        <Paper withBorder p="md" radius="md">
           <Title order={4}>Manage Security Personnel</Title>
           <Group mt="sm" align="end" grow>
             <TextInput
