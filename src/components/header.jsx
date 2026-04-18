@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { User, SignOut, Bell, UserSwitch } from "@phosphor-icons/react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -26,6 +26,14 @@ import avatarImage from "../assets/avatar.png";
 import { setPfNo } from "../redux/pfNoSlice";
 
 import { logoutRoute, updateRoleRoute } from "../routes/dashboardRoutes";
+import { host } from "../routes/globalRoutes";
+
+const VMS_ROLE_LABEL = {
+  super_admin: { label: "VMS · Super Admin", color: "grape" },
+  admin: { label: "VMS · Admin", color: "violet" },
+  department: { label: "VMS · Dept Host", color: "blue" },
+  basic: { label: "VMS · Basic", color: "gray" },
+};
 
 function Header({ opened, toggleSidebar }) {
   const [popoverOpened, setPopoverOpened] = useState(false);
@@ -33,6 +41,18 @@ function Header({ opened, toggleSidebar }) {
   const roles = useSelector((state) => state.user.roles);
   const role = useSelector((state) => state.user.role);
   const badges = useSelector((state) => state.user.totalNotifications);
+  const [vmsRole, setVmsRole] = useState(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (!token) return;
+    axios
+      .get(`${host}/vms/me/`, {
+        headers: { Authorization: `Token ${token}` },
+      })
+      .then((res) => setVmsRole(res.data))
+      .catch(() => setVmsRole({ authority_level: null }));
+  }, []);
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -143,7 +163,14 @@ function Header({ opened, toggleSidebar }) {
             data={roles}
             value={role}
             onChange={handleRoleChange}
-            placeholder="Role"
+            placeholder={
+              vmsRole?.authority_level
+                ? (VMS_ROLE_LABEL[vmsRole.authority_level]?.label ??
+                  `VMS · ${vmsRole.authority_level}`)
+                : vmsRole
+                  ? "VMS · No Role"
+                  : "Role"
+            }
           />
           <Flex align="flex-start" onClick={() => navigate("/dashboard")}>
             <Bell color="orange" size="32px" cursor="pointer" />

@@ -10,17 +10,32 @@ import {
   fetchRecentVisits,
   fetchIncidents,
   logIncident,
+  processVipVisit,
+  fetchVipVisitors,
+  generateReport,
+  importVisitors,
+  fetchVisitorHistoryByVisit,
 } from "./api";
+import {
+  exportOperationalReportPdf,
+  exportVisitorHistoryPdf,
+} from "./vmsExportPdf";
 import {
   defaultIncidentPayload,
   defaultRegisterPayload,
   defaultSecurityPersonnel,
   defaultVipPermissions,
   extractErrorPayload,
-  buildOperationalReport,
   createIncidentRecord,
   parseVisitorRecords,
 } from "./helpers";
+
+const isoDaysAgo = (days) => {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
+};
+const today = () => new Date().toISOString().slice(0, 10);
 
 export default function useVmsController() {
   const [registerPayload, setRegisterPayload] = useState(
@@ -46,8 +61,19 @@ export default function useVmsController() {
   const [newStaffName, setNewStaffName] = useState("");
   const [newStaffRole, setNewStaffRole] = useState("Gate Officer");
   const [newStaffShift, setNewStaffShift] = useState("Morning");
-  const [vipVisitorName, setVipVisitorName] = useState("");
-  const [vipAccessLevel, setVipAccessLevel] = useState("admin_block");
+  const [vipVisitIdInput, setVipVisitIdInput] = useState("");
+  const [vipBypassApproval, setVipBypassApproval] = useState(false);
+  const [reportType, setReportType] = useState("visitor_summary");
+  const [reportStartDate, setReportStartDate] = useState(isoDaysAgo(30));
+  const [reportEndDate, setReportEndDate] = useState(today());
+  const [reportData, setReportData] = useState(null);
+  const [importFormat, setImportFormat] = useState("csv");
+  const [importContent, setImportContent] = useState("");
+  const [importFieldMapping, setImportFieldMapping] = useState(
+    '{\n  "full_name": "full_name",\n  "id_number": "id_number",\n  "id_type": "id_type",\n  "contact_phone": "contact_phone",\n  "contact_email": "contact_email"\n}',
+  );
+  const [importResult, setImportResult] = useState(null);
+  const [historyVisitIdInput, setHistoryVisitIdInput] = useState("");
   const [actionStatus, setActionStatus] = useState(null);
   const [currentVisitStatus, setCurrentVisitStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -57,11 +83,13 @@ export default function useVmsController() {
     const loadInitialData = async () => {
       setIsLoading(true);
       try {
-        const [activeRes, recentRes, incidentsRes] = await Promise.allSettled([
-          fetchActiveVisitors(),
-          fetchRecentVisits(5),
-          fetchIncidents(20),
-        ]);
+        const [activeRes, recentRes, incidentsRes, vipRes] =
+          await Promise.allSettled([
+            fetchActiveVisitors(),
+            fetchRecentVisits(5),
+            fetchIncidents(20),
+            fetchVipVisitors(),
+          ]);
 
         if (activeRes.status === "fulfilled") {
           setActiveVisitors(parseVisitorRecords(activeRes.value.data));
@@ -94,6 +122,21 @@ export default function useVmsController() {
               description: inc.description,
               status: inc.status,
               raised_at: inc.created_at,
+            })),
+          );
+        }
+
+        if (vipRes.status === "fulfilled") {
+          const vipVisits = Array.isArray(vipRes.value.data)
+            ? vipRes.value.data
+            : [];
+          setVipPermissions(
+            vipVisits.map((v) => ({
+              id: v.id,
+              visitor: v.visitor?.full_name || `Visit #${v.id}`,
+              visit_id: v.id,
+              access_level: v.authorized_zones || "—",
+              active: v.status !== "exited" && v.status !== "denied",
             })),
           );
         }
@@ -365,16 +408,139 @@ export default function useVmsController() {
     );
 
   const onGenerateReport = () => {
-    const report = buildOperationalReport({
-      records: activeVisitors,
-      incidents: incidentLog,
-      vipPermissions,
-      securityPersonnel,
-    });
-    setActionStatus({
-      type: "success",
-      message: `report generated: ${report.total_active_visitors} active visitors, ${report.total_incidents} incidents`,
-    });
+    if (!reportStartDate || !reportEndDate) {
+      setActionStatus({
+        type: "error",
+        message: "report failed: start and end dates are required",
+      });
+      return;
+    }
+    execute(
+      "report",
+      () =>
+        generateReport({
+          report_type: reportType,
+          start_date: reportStartDate,
+          end_date: reportEndDate,
+        }),
+      {
+        onSuccess: (data) => {
+          setReportData(data || null);
+          const summary = data?.summary;
+          if (summary) {
+            setActionStatus({
+              type: "success",
+              message: `report generated: ${summary.total_visits ?? 0} visits, ${summary.total_incidents ?? 0} incidents, ${summary.vip_visits ?? 0} VIP`,
+            });
+          }
+        },
+      },
+    );
+  };
+
+  const onImportVisitors = () => {
+    if (!importContent.trim()) {
+      setActionStatus({
+        type: "error",
+        message: "import failed: data content is required",
+      });
+      return;
+    }
+    let fieldMapping;
+    try {
+      fieldMapping = JSON.parse(importFieldMapping);
+      if (
+        typeof fieldMapping !== "object" ||
+        fieldMapping === null ||
+        Array.isArray(fieldMapping)
+      ) {
+        throw new Error("not an object");
+      }
+    } catch (err) {
+      setActionStatus({
+        type: "error",
+        message: "import failed: field mapping must be a JSON object",
+      });
+      return;
+    }
+
+    execute(
+      "import",
+      () =>
+        importVisitors({
+          format: importFormat,
+          data_content: importContent,
+          field_mapping: fieldMapping,
+        }),
+      {
+        onSuccess: (data) => {
+          setImportResult(data || null);
+          if (data?.records_processed !== undefined) {
+            setActionStatus({
+              type: "success",
+              message: `import completed: ${data.records_processed} records processed`,
+            });
+          }
+        },
+      },
+    );
+  };
+
+  const onDownloadReportPdf = () => {
+    if (!reportData) {
+      setActionStatus({
+        type: "error",
+        message: "report-pdf failed: generate a report first",
+      });
+      return;
+    }
+    try {
+      exportOperationalReportPdf(reportData, {
+        activeVisitors,
+        incidents: incidentLog,
+      });
+      setActionStatus({
+        type: "success",
+        message: "report-pdf downloaded",
+      });
+    } catch (err) {
+      setActionStatus({
+        type: "error",
+        message: `report-pdf failed: ${err.message}`,
+      });
+    }
+  };
+
+  const onExportVisitorHistory = () => {
+    const parsedVisitId = Number(historyVisitIdInput);
+    if (!parsedVisitId) {
+      setActionStatus({
+        type: "error",
+        message:
+          "visitor-history failed: a numeric Visit ID is required (see Visitor Records)",
+      });
+      return;
+    }
+    execute(
+      "visitor-history",
+      () => fetchVisitorHistoryByVisit(parsedVisitId),
+      {
+        onSuccess: (data) => {
+          try {
+            exportVisitorHistoryPdf(data);
+            setActionStatus({
+              type: "success",
+              message: `visitor-history PDF generated for Visit #${parsedVisitId}`,
+            });
+          } catch (err) {
+            setActionStatus({
+              type: "error",
+              message: `visitor-history PDF generation failed: ${err.message}`,
+            });
+          }
+        },
+      },
+    );
   };
 
   const onAddSecurityPersonnel = () => {
@@ -415,28 +581,46 @@ export default function useVmsController() {
     );
   };
 
-  const onAddVipPermission = () => {
-    if (!vipVisitorName.trim()) {
+  const onGrantVipAccess = () => {
+    const targetVisitId = Number(vipVisitIdInput);
+    if (!targetVisitId) {
       setActionStatus({
         type: "error",
-        message: "vip-permission failed: visitor name is required",
+        message: "vip-permission failed: a numeric Visit ID is required",
       });
       return;
     }
 
-    const newPermission = {
-      id: Date.now(),
-      visitor: vipVisitorName.trim(),
-      access_level: vipAccessLevel,
-      active: true,
-    };
-
-    setVipPermissions((previous) => [newPermission, ...previous]);
-    setVipVisitorName("");
-    setActionStatus({
-      type: "success",
-      message: `vip-permission completed: access granted to ${newPermission.visitor}`,
-    });
+    execute(
+      "vip-permission",
+      () =>
+        processVipVisit({
+          visit_id: targetVisitId,
+          bypass_approval: vipBypassApproval,
+        }),
+      {
+        onSuccess: (data) => {
+          const visit = data?.visit || {};
+          const resolvedId = visit.id || targetVisitId;
+          const record = {
+            id: resolvedId,
+            visit_id: resolvedId,
+            visitor: visit.visitor?.full_name || `Visit #${targetVisitId}`,
+            access_level: visit.authorized_zones || "pending",
+            active: true,
+          };
+          setVipPermissions((previous) => [
+            record,
+            ...previous.filter((p) => p.visit_id !== record.visit_id),
+          ]);
+          patchVisitorRecord(String(resolvedId), {
+            is_vip: true,
+            status: visit.status,
+          });
+          setVipVisitIdInput("");
+        },
+      },
+    );
   };
 
   const onToggleVipPermission = (id) => {
@@ -484,10 +668,26 @@ export default function useVmsController() {
     setNewStaffRole,
     newStaffShift,
     setNewStaffShift,
-    vipVisitorName,
-    setVipVisitorName,
-    vipAccessLevel,
-    setVipAccessLevel,
+    vipVisitIdInput,
+    setVipVisitIdInput,
+    vipBypassApproval,
+    setVipBypassApproval,
+    reportType,
+    setReportType,
+    reportStartDate,
+    setReportStartDate,
+    reportEndDate,
+    setReportEndDate,
+    reportData,
+    importFormat,
+    setImportFormat,
+    importContent,
+    setImportContent,
+    importFieldMapping,
+    setImportFieldMapping,
+    importResult,
+    historyVisitIdInput,
+    setHistoryVisitIdInput,
     actionStatus,
     currentVisitStatus,
     isLoading,
@@ -504,7 +704,10 @@ export default function useVmsController() {
     onGenerateReport,
     onAddSecurityPersonnel,
     onTogglePersonnelStatus,
-    onAddVipPermission,
+    onGrantVipAccess,
     onToggleVipPermission,
+    onImportVisitors,
+    onExportVisitorHistory,
+    onDownloadReportPdf,
   };
 }

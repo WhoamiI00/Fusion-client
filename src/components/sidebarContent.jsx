@@ -31,6 +31,7 @@ import {
   Gear as SettingsIcon,
   AmazonLogo as CourseManagementIcon,
   Scroll as PatentIcon,
+  ShieldCheck as VmsIcon,
   CaretRight,
   CaretLeft,
 } from "@phosphor-icons/react";
@@ -67,6 +68,7 @@ function SidebarContent({ isCollapsed, toggleSidebar }) {
     "hr",
     "course_management",
     "patent_management",
+    "vms",
   ];
 
   const Modules = [
@@ -207,6 +209,12 @@ function SidebarContent({ isCollapsed, toggleSidebar }) {
       icon: <PatentIcon size={18} />,
       url: "/patent/",
     },
+    {
+      label: "Visitor Management",
+      id: "vms",
+      icon: <VmsIcon size={18} />,
+      url: "/vms-demo-staff",
+    },
   ];
 
   const otherItems = [
@@ -231,7 +239,10 @@ function SidebarContent({ isCollapsed, toggleSidebar }) {
 
   useEffect(() => {
     const filterModules = Modules.filter(
-      (module) => accessibleModules[module.id] || module.id === "home",
+      (module) =>
+        accessibleModules[module.id] ||
+        module.id === "home" ||
+        module.id === "vms",
     );
     setFilteredModules(filterModules);
   }, [accessibleModules]);

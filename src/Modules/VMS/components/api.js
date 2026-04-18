@@ -34,3 +34,20 @@ export const fetchIncidents = (limit = 20) =>
 
 export const logIncident = (payload) =>
   getClient().post("/vms/incidents/", payload);
+
+export const processVipVisit = (payload) =>
+  getClient().post("/vms/vip/process/", payload);
+
+export const fetchVipVisitors = () => getClient().get("/vms/vip/");
+
+export const generateReport = (payload) =>
+  getClient().post("/vms/reports/", payload);
+
+export const importVisitors = (payload) =>
+  getClient().post("/vms/import/", payload);
+
+export const fetchVisitorHistoryById = (idNumber) =>
+  getClient().get(`/vms/history/${encodeURIComponent(idNumber)}/`);
+
+export const fetchVisitorHistoryByVisit = (visitId) =>
+  getClient().get(`/vms/visit-history/${encodeURIComponent(visitId)}/`);
