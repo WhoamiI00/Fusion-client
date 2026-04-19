@@ -29,7 +29,7 @@ import { logoutRoute, updateRoleRoute } from "../routes/dashboardRoutes";
 import { host } from "../routes/globalRoutes";
 
 const VMS_ROLE_LABEL = {
-  super_admin: { label: "VMS · Super Admin", color: "grape" },
+  super_admin: { label: "VMS · Administrator", color: "grape" },
   admin: { label: "VMS · Admin", color: "violet" },
   department: { label: "VMS · Dept Host", color: "blue" },
   basic: { label: "VMS · Basic", color: "gray" },

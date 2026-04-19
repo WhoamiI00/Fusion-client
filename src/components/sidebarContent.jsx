@@ -39,11 +39,31 @@ import PropTypes from "prop-types";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
+import axios from "axios";
 import IIITLOGO from "../assets/IIITJ_logo.webp";
 import { setCurrentModule } from "../redux/moduleslice";
+import { host } from "../routes/globalRoutes";
+
+const VMS_ADMIN_AUTHORITIES = new Set(["super_admin", "admin"]);
 
 function SidebarContent({ isCollapsed, toggleSidebar }) {
   const role = useSelector((state) => state.user.role);
+  const [vmsAuthority, setVmsAuthority] = useState(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (!token) return;
+    axios
+      .get(`${host}/vms/me/`, {
+        headers: { Authorization: `Token ${token}` },
+      })
+      .then((res) => setVmsAuthority(res.data?.authority_level ?? null))
+      .catch(() => setVmsAuthority(null));
+  }, []);
+
+  const vmsUrl = VMS_ADMIN_AUTHORITIES.has(vmsAuthority)
+    ? "/vms-demo-admin"
+    : "/vms-demo-staff";
 
   const deployedModules = [
     "complaint_management",
@@ -213,7 +233,7 @@ function SidebarContent({ isCollapsed, toggleSidebar }) {
       label: "Visitor Management",
       id: "vms",
       icon: <VmsIcon size={18} />,
-      url: "/vms-demo-staff",
+      url: vmsUrl,
     },
   ];
 

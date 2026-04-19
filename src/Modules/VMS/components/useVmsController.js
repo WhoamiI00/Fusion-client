@@ -18,6 +18,10 @@ import {
   fetchBlacklist,
   addToBlacklist,
   removeFromBlacklist,
+  fetchEscorts,
+  fetchAvailableEscorts,
+  assignEscort,
+  releaseEscort,
 } from "./api";
 import {
   exportOperationalReportPdf,
@@ -66,6 +70,12 @@ export default function useVmsController() {
   const [newStaffShift, setNewStaffShift] = useState("Morning");
   const [vipVisitIdInput, setVipVisitIdInput] = useState("");
   const [vipBypassApproval, setVipBypassApproval] = useState(false);
+  const [vipLevelInput, setVipLevelInput] = useState("3");
+  const [escortAssignments, setEscortAssignments] = useState([]);
+  const [availableEscorts, setAvailableEscorts] = useState([]);
+  const [escortVisitIdInput, setEscortVisitIdInput] = useState("");
+  const [escortSelectedId, setEscortSelectedId] = useState("");
+  const [escortNotesInput, setEscortNotesInput] = useState("");
   const [reportType, setReportType] = useState("visitor_summary");
   const [reportStartDate, setReportStartDate] = useState(isoDaysAgo(30));
   const [reportEndDate, setReportEndDate] = useState(today());
@@ -92,14 +102,23 @@ export default function useVmsController() {
     const loadInitialData = async () => {
       setIsLoading(true);
       try {
-        const [activeRes, recentRes, incidentsRes, vipRes, blacklistRes] =
-          await Promise.allSettled([
-            fetchActiveVisitors(),
-            fetchRecentVisits(5),
-            fetchIncidents(20),
-            fetchVipVisitors(),
-            fetchBlacklist(),
-          ]);
+        const [
+          activeRes,
+          recentRes,
+          incidentsRes,
+          vipRes,
+          blacklistRes,
+          escortsRes,
+          availEscortsRes,
+        ] = await Promise.allSettled([
+          fetchActiveVisitors(),
+          fetchRecentVisits(5),
+          fetchIncidents(20),
+          fetchVipVisitors(),
+          fetchBlacklist(),
+          fetchEscorts(),
+          fetchAvailableEscorts(),
+        ]);
 
         if (activeRes.status === "fulfilled") {
           setActiveVisitors(parseVisitorRecords(activeRes.value.data));
@@ -156,6 +175,20 @@ export default function useVmsController() {
             ? blacklistRes.value.data
             : [];
           setBlacklistEntries(entries);
+        }
+
+        if (escortsRes.status === "fulfilled") {
+          const entries = Array.isArray(escortsRes.value.data)
+            ? escortsRes.value.data
+            : [];
+          setEscortAssignments(entries);
+        }
+
+        if (availEscortsRes.status === "fulfilled") {
+          const entries = Array.isArray(availEscortsRes.value.data)
+            ? availEscortsRes.value.data
+            : [];
+          setAvailableEscorts(entries);
         }
       } finally {
         setIsLoading(false);
@@ -652,12 +685,19 @@ export default function useVmsController() {
       return;
     }
 
+    const parsedLevel = Number(vipLevelInput);
+    const levelPayload =
+      Number.isFinite(parsedLevel) && parsedLevel > 0
+        ? { vip_level: parsedLevel }
+        : {};
+
     execute(
       "vip-permission",
       () =>
         processVipVisit({
           visit_id: targetVisitId,
           bypass_approval: vipBypassApproval,
+          ...levelPayload,
         }),
       {
         onSuccess: (data) => {
@@ -678,10 +718,65 @@ export default function useVmsController() {
             is_vip: true,
             status: visit.status,
           });
+          // BR-046: if the backend auto-assigned an escort, refresh the lists.
+          if (data?.auto_escort) {
+            setEscortAssignments((prev) => [data.auto_escort, ...prev]);
+            fetchAvailableEscorts()
+              .then((res) => {
+                if (Array.isArray(res.data)) setAvailableEscorts(res.data);
+              })
+              .catch(() => {});
+          }
           setVipVisitIdInput("");
         },
       },
     );
+  };
+
+  const refreshEscortLists = async () => {
+    try {
+      const [list, avail] = await Promise.all([
+        fetchEscorts(),
+        fetchAvailableEscorts(),
+      ]);
+      if (Array.isArray(list.data)) setEscortAssignments(list.data);
+      if (Array.isArray(avail.data)) setAvailableEscorts(avail.data);
+    } catch {
+      /* swallow — UI already shows previous snapshot */
+    }
+  };
+
+  const onAssignEscort = () => {
+    const targetVisitId = Number(escortVisitIdInput);
+    if (!targetVisitId) {
+      setActionStatus({
+        type: "error",
+        message: "escort-assign failed: a numeric Visit ID is required",
+      });
+      return;
+    }
+    const escortId = Number(escortSelectedId);
+    const payload = {
+      visit_id: targetVisitId,
+      notes: escortNotesInput,
+      ...(Number.isFinite(escortId) && escortId > 0
+        ? { escort_id: escortId }
+        : {}),
+    };
+    execute("escort-assign", () => assignEscort(payload), {
+      onSuccess: () => {
+        setEscortVisitIdInput("");
+        setEscortSelectedId("");
+        setEscortNotesInput("");
+        refreshEscortLists();
+      },
+    });
+  };
+
+  const onReleaseEscort = (assignmentId) => {
+    execute("escort-release", () => releaseEscort(assignmentId), {
+      onSuccess: () => refreshEscortLists(),
+    });
   };
 
   const onToggleVipPermission = (id) => {
@@ -733,6 +828,16 @@ export default function useVmsController() {
     setVipVisitIdInput,
     vipBypassApproval,
     setVipBypassApproval,
+    vipLevelInput,
+    setVipLevelInput,
+    escortAssignments,
+    availableEscorts,
+    escortVisitIdInput,
+    setEscortVisitIdInput,
+    escortSelectedId,
+    setEscortSelectedId,
+    escortNotesInput,
+    setEscortNotesInput,
     reportType,
     setReportType,
     reportStartDate,
@@ -770,6 +875,8 @@ export default function useVmsController() {
     onTogglePersonnelStatus,
     onGrantVipAccess,
     onToggleVipPermission,
+    onAssignEscort,
+    onReleaseEscort,
     onImportVisitors,
     onExportVisitorHistory,
     onDownloadReportPdf,

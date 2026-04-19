@@ -59,3 +59,14 @@ export const addToBlacklist = (payload) =>
 
 export const removeFromBlacklist = (entryId) =>
   getClient().post(`/vms/blacklist/${encodeURIComponent(entryId)}/remove/`);
+
+export const fetchEscorts = () => getClient().get("/vms/escorts/");
+
+export const fetchAvailableEscorts = () =>
+  getClient().get("/vms/escorts/available/");
+
+export const assignEscort = (payload) =>
+  getClient().post("/vms/escorts/", payload);
+
+export const releaseEscort = (assignmentId) =>
+  getClient().post(`/vms/escorts/${encodeURIComponent(assignmentId)}/release/`);

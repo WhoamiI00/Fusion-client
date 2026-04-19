@@ -342,6 +342,14 @@ function VmsAdminPage() {
                 ctrl.setVipVisitIdInput(event.currentTarget.value)
               }
             />
+            <TextInput
+              label="VIP Level (1–10)"
+              placeholder="3 triggers escort"
+              value={ctrl.vipLevelInput}
+              onChange={(event) =>
+                ctrl.setVipLevelInput(event.currentTarget.value)
+              }
+            />
             <Checkbox
               label="Bypass standard approval"
               checked={ctrl.vipBypassApproval}
@@ -351,6 +359,10 @@ function VmsAdminPage() {
             />
             <Button onClick={ctrl.onGrantVipAccess}>Grant VIP Status</Button>
           </Group>
+          <Text size="xs" c="dimmed" mt={4}>
+            BR-046: setting VIP level ≥ configured escort threshold auto-assigns
+            an available qualified escort.
+          </Text>
           <Stack mt="md" gap="xs">
             {ctrl.vipPermissions.length === 0 && (
               <Text size="sm" c="dimmed">
@@ -371,6 +383,74 @@ function VmsAdminPage() {
                 >
                   {record.active ? "active" : "inactive"}
                 </Button>
+              </Group>
+            ))}
+          </Stack>
+        </Paper>
+
+        <Paper withBorder p="md" radius="md">
+          <Title order={4}>VIP Escort Assignment (BR-046)</Title>
+          <Text size="sm" c="dimmed" mt={4}>
+            Assign a dedicated escort to a VIP visit whose vip_level meets the
+            configured escort threshold. Leave escort empty to auto-pick the
+            first available qualified officer.
+          </Text>
+          <Group mt="sm" align="end" grow>
+            <TextInput
+              label="Visit ID"
+              placeholder="e.g. 42"
+              value={ctrl.escortVisitIdInput}
+              onChange={(event) =>
+                ctrl.setEscortVisitIdInput(event.currentTarget.value)
+              }
+            />
+            <Select
+              label="Escort (optional)"
+              placeholder="auto-pick available"
+              value={ctrl.escortSelectedId || null}
+              onChange={(value) => ctrl.setEscortSelectedId(value || "")}
+              data={ctrl.availableEscorts.map((e) => ({
+                value: String(e.id),
+                label: `${e.name || `Staff #${e.id}`}${
+                  e.department ? ` · ${e.department}` : ""
+                }`,
+              }))}
+              clearable
+              searchable
+            />
+            <TextInput
+              label="Notes"
+              placeholder="Protocol details"
+              value={ctrl.escortNotesInput}
+              onChange={(event) =>
+                ctrl.setEscortNotesInput(event.currentTarget.value)
+              }
+            />
+            <Button onClick={ctrl.onAssignEscort}>Assign Escort</Button>
+          </Group>
+          <Stack mt="md" gap="xs">
+            {ctrl.escortAssignments.length === 0 && (
+              <Text size="sm" c="dimmed">
+                No active escort assignments.
+              </Text>
+            )}
+            {ctrl.escortAssignments.map((a) => (
+              <Group key={a.id} justify="space-between">
+                <Text size="sm">
+                  #{a.id} · Visit {a.visit} · Escort ID {a.escort || "—"} ·
+                  assigned {a.assigned_at?.slice(0, 16).replace("T", " ")}
+                  {a.released_at ? " · released" : ""}
+                </Text>
+                {!a.released_at && (
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="red"
+                    onClick={() => ctrl.onReleaseEscort(a.id)}
+                  >
+                    Release
+                  </Button>
+                )}
               </Group>
             ))}
           </Stack>
