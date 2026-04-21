@@ -51,6 +51,9 @@ const VmsDemoStaff = lazy(() =>
 const VmsDemoAdmin = lazy(() =>
   import("./Modules/VMS").then((m) => ({ default: m.VmsAdminPage })),
 );
+const VmsAccessGuard = lazy(
+  () => import("./Modules/VMS/components/VmsAccessGuard"),
+);
 
 const Dashboard = lazy(
   () => import("./Modules/Dashboard/dashboardNotifications"),
@@ -578,7 +581,9 @@ export default function App() {
           element={
             <Layout>
               <Suspense fallback={<div>Loading .... </div>}>
-                <VmsDemo />
+                <VmsAccessGuard require="staff">
+                  <VmsDemo />
+                </VmsAccessGuard>
               </Suspense>
             </Layout>
           }
@@ -588,7 +593,9 @@ export default function App() {
           element={
             <Layout>
               <Suspense fallback={<div>Loading .... </div>}>
-                <VmsDemoStaff />
+                <VmsAccessGuard require="staff">
+                  <VmsDemoStaff />
+                </VmsAccessGuard>
               </Suspense>
             </Layout>
           }
@@ -598,7 +605,9 @@ export default function App() {
           element={
             <Layout>
               <Suspense fallback={<div>Loading .... </div>}>
-                <VmsDemoAdmin />
+                <VmsAccessGuard require="admin">
+                  <VmsDemoAdmin />
+                </VmsAccessGuard>
               </Suspense>
             </Layout>
           }

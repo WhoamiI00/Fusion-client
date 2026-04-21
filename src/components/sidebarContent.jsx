@@ -258,14 +258,18 @@ function SidebarContent({ isCollapsed, toggleSidebar }) {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // VMS is visible only to users with a HostAuthority row (gate staff,
+    // department hosts, VMS admin, super admin) — regular students and
+    // other users without VMS authority don't see the module at all.
+    const hasVmsAccess = vmsAuthority !== null;
     const filterModules = Modules.filter(
       (module) =>
         accessibleModules[module.id] ||
         module.id === "home" ||
-        module.id === "vms",
+        (module.id === "vms" && hasVmsAccess),
     );
     setFilteredModules(filterModules);
-  }, [accessibleModules]);
+  }, [accessibleModules, vmsAuthority]);
 
   const handleModuleClick = (item) => {
     let path = item.url;
