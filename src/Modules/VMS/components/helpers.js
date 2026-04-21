@@ -1,7 +1,7 @@
 export const defaultRegisterPayload = {
   full_name: "Alice Mehra",
-  id_number: "DL-09-88442",
-  id_type: "passport",
+  id_number: "234567890123",
+  id_type: "aadhaar",
   contact_phone: "9812345678",
   contact_email: "alice.mehra@innovent.io",
   photo_reference: "visitor-frame-22",
@@ -11,6 +11,7 @@ export const defaultRegisterPayload = {
   host_contact: "9876543210",
   expected_duration_minutes: 90,
   is_vip: false,
+  vip_level: 0,
 };
 
 export const defaultIncidentPayload = {

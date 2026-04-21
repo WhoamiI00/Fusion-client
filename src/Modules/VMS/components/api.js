@@ -70,3 +70,26 @@ export const assignEscort = (payload) =>
 
 export const releaseEscort = (assignmentId) =>
   getClient().post(`/vms/escorts/${encodeURIComponent(assignmentId)}/release/`);
+
+// WF-009: System configuration management (BR-057–066)
+export const fetchSystemConfig = () => getClient().get("/vms/config/");
+
+export const updateSystemConfig = (payload) =>
+  getClient().post("/vms/config/", payload);
+
+export const fetchConfigHistory = (key) =>
+  getClient().get(
+    `/vms/config/history/${key ? `?key=${encodeURIComponent(key)}` : ""}`,
+  );
+
+// WF-009 sub-flow S1: visiting hours (BR-063)
+export const fetchVisitingHours = () => getClient().get("/vms/visiting-hours/");
+
+export const configureVisitingHours = (payload) =>
+  getClient().post("/vms/visiting-hours/", payload);
+
+// WF-009 sub-flow S2: access zones (BR-064)
+export const fetchAccessZones = () => getClient().get("/vms/zones/");
+
+export const configureAccessZone = (payload) =>
+  getClient().post("/vms/zones/", payload);

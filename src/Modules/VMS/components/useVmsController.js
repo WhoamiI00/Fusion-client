@@ -22,6 +22,13 @@ import {
   fetchAvailableEscorts,
   assignEscort,
   releaseEscort,
+  fetchSystemConfig,
+  updateSystemConfig,
+  fetchConfigHistory,
+  fetchVisitingHours,
+  configureVisitingHours,
+  fetchAccessZones,
+  configureAccessZone,
 } from "./api";
 import {
   exportOperationalReportPdf,
@@ -90,6 +97,7 @@ export default function useVmsController() {
   const [blacklistEntries, setBlacklistEntries] = useState([]);
   const [blacklistForm, setBlacklistForm] = useState({
     id_number: "",
+    visit_id: "",
     reason: "",
     evidence: "",
   });
@@ -97,6 +105,33 @@ export default function useVmsController() {
   const [currentVisitStatus, setCurrentVisitStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [passQrCode, setPassQrCode] = useState(null);
+
+  // WF-009: System configuration
+  const [systemConfigs, setSystemConfigs] = useState([]);
+  const [configHistory, setConfigHistory] = useState([]);
+  const [configForm, setConfigForm] = useState({
+    key: "escort_threshold",
+    value: "3",
+    description: "",
+  });
+  const [visitingHours, setVisitingHours] = useState([]);
+  const [visitingHoursForm, setVisitingHoursForm] = useState({
+    day_of_week: 1,
+    start_time: "09:00",
+    end_time: "17:00",
+    is_holiday: false,
+    holiday_name: "",
+    active: true,
+  });
+  const [accessZones, setAccessZones] = useState([]);
+  const [accessZoneForm, setAccessZoneForm] = useState({
+    name: "lobby",
+    description: "Main lobby",
+    requires_vip: false,
+    requires_escort: false,
+    is_restricted: false,
+    active: true,
+  });
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -346,6 +381,61 @@ export default function useVmsController() {
     );
   };
 
+  // One-click: verify + issue pass + return QR. Skips the manual verify step
+  // when the visit is already verified / pass_issued, so the staff user can
+  // type a visit ID and immediately receive a scannable QR.
+  const onIssueQrPass = async () => {
+    const id = Number(visitId);
+    if (!id) {
+      setActionStatus({
+        type: "error",
+        message: "issue-qr-pass failed: enter a visit ID",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    setActionStatus(null);
+    setPassQrCode(null);
+    try {
+      const alreadyVerified = ["id_verified", "pass_issued", "inside"].includes(
+        currentVisitStatus,
+      );
+      if (!alreadyVerified) {
+        await verifyVisitor({
+          visit_id: id,
+          method: "manual",
+          result: true,
+          notes: "Quick QR pass issuance",
+        });
+        patchVisitorRecord(visitId, { status: "id_verified" });
+        setCurrentVisitStatus("id_verified");
+      }
+
+      const { data } = await issuePass({
+        visit_id: id,
+        authorized_zones: authorizedZones,
+      });
+
+      if (data?.qr_code) {
+        setPassQrCode(data.qr_code);
+      }
+      patchVisitorRecord(visitId, {
+        status: "pass_issued",
+        authorized_zones: authorizedZones,
+      });
+      setCurrentVisitStatus("pass_issued");
+      setActionStatus({
+        type: "success",
+        message: "issue-qr-pass completed successfully",
+      });
+    } catch (error) {
+      handleFailure("issue-qr-pass", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const onRecordEntry = () => {
     if (!["pass_issued", "inside"].includes(currentVisitStatus)) {
       setActionStatus({
@@ -393,12 +483,25 @@ export default function useVmsController() {
           items_declared: itemsDeclared,
         }),
       {
-        onSuccess: () => {
+        onSuccess: async () => {
           patchVisitorRecord(visitId, {
             status: "exited",
             gate_name: gateName,
           });
           setCurrentVisitStatus("exited");
+          // Backend auto-releases escorts on exit — refetch escort lists
+          // directly (inlined to avoid a forward reference to a handler
+          // defined later in this hook).
+          try {
+            const [list, avail] = await Promise.all([
+              fetchEscorts(),
+              fetchAvailableEscorts(),
+            ]);
+            if (Array.isArray(list.data)) setEscortAssignments(list.data);
+            if (Array.isArray(avail.data)) setAvailableEscorts(avail.data);
+          } catch (_) {
+            /* best-effort */
+          }
         },
       },
     );
@@ -595,34 +698,41 @@ export default function useVmsController() {
 
   const onAddToBlacklist = () => {
     const idNumber = blacklistForm.id_number.trim();
+    const visitIdRaw = String(blacklistForm.visit_id || "").trim();
     const reason = blacklistForm.reason.trim();
-    if (!idNumber || !reason) {
+    if (!reason) {
       setActionStatus({
         type: "error",
-        message: "blacklist-add failed: ID number and reason are required",
+        message: "blacklist-add failed: reason is required",
       });
       return;
     }
-    execute(
-      "blacklist-add",
-      () =>
-        addToBlacklist({
-          id_number: idNumber,
-          reason,
-          evidence: blacklistForm.evidence.trim(),
-        }),
-      {
-        onSuccess: (data) => {
-          if (data && data.id) {
-            setBlacklistEntries((previous) => [
-              data,
-              ...previous.filter((entry) => entry.id !== data.id),
-            ]);
-          }
-          setBlacklistForm({ id_number: "", reason: "", evidence: "" });
-        },
+    if (!idNumber && !visitIdRaw) {
+      setActionStatus({
+        type: "error",
+        message: "blacklist-add failed: supply either ID Number or Visit ID",
+      });
+      return;
+    }
+    const payload = { reason, evidence: blacklistForm.evidence.trim() };
+    if (idNumber) payload.id_number = idNumber;
+    if (visitIdRaw) payload.visit_id = Number(visitIdRaw);
+    execute("blacklist-add", () => addToBlacklist(payload), {
+      onSuccess: (data) => {
+        if (data && data.id) {
+          setBlacklistEntries((previous) => [
+            data,
+            ...previous.filter((entry) => entry.id !== data.id),
+          ]);
+        }
+        setBlacklistForm({
+          id_number: "",
+          visit_id: "",
+          reason: "",
+          evidence: "",
+        });
       },
-    );
+    });
   };
 
   const onRemoveFromBlacklist = (entryId) => {
@@ -787,6 +897,157 @@ export default function useVmsController() {
     );
   };
 
+  const onLoadImportSample = () => {
+    if (importFormat === "csv") {
+      setImportContent(
+        [
+          "full_name,id_number,id_type,contact_phone,contact_email",
+          "Nikhil Sharma,345678901234,aadhaar,9812345601,nikhil@example.com",
+          "Meera Iyer,456789012345,aadhaar,9812345602,meera@example.com",
+          "Raj Patel,P1234567,passport,9812345603,raj@example.com",
+          "Kabir Khan,567890123456,aadhaar,9812345604,kabir@example.com",
+          "Sara Verma,DL-07-45123,driver_license,9812345605,sara@example.com",
+        ].join("\n"),
+      );
+    } else {
+      setImportContent(
+        JSON.stringify(
+          [
+            {
+              full_name: "Nikhil Sharma",
+              id_number: "345678901234",
+              id_type: "aadhaar",
+              contact_phone: "9812345601",
+              contact_email: "nikhil@example.com",
+            },
+            {
+              full_name: "Meera Iyer",
+              id_number: "456789012345",
+              id_type: "aadhaar",
+              contact_phone: "9812345602",
+              contact_email: "meera@example.com",
+            },
+            {
+              full_name: "Raj Patel",
+              id_number: "P1234567",
+              id_type: "passport",
+              contact_phone: "9812345603",
+              contact_email: "raj@example.com",
+            },
+            {
+              full_name: "Kabir Khan",
+              id_number: "567890123456",
+              id_type: "aadhaar",
+              contact_phone: "9812345604",
+              contact_email: "kabir@example.com",
+            },
+            {
+              full_name: "Sara Verma",
+              id_number: "DL-07-45123",
+              id_type: "driver_license",
+              contact_phone: "9812345605",
+              contact_email: "sara@example.com",
+            },
+          ],
+          null,
+          2,
+        ),
+      );
+    }
+    setImportFieldMapping(
+      JSON.stringify(
+        {
+          full_name: "full_name",
+          id_number: "id_number",
+          id_type: "id_type",
+          contact_phone: "contact_phone",
+          contact_email: "contact_email",
+        },
+        null,
+        2,
+      ),
+    );
+    setActionStatus({
+      type: "success",
+      message: `Sample ${importFormat.toUpperCase()} loaded — click Run Import`,
+    });
+  };
+
+  // WF-009: System configuration handlers (BR-057–066)
+  const onLoadSystemConfig = () =>
+    execute("config-load", () => fetchSystemConfig(), {
+      onSuccess: (data) => setSystemConfigs(Array.isArray(data) ? data : []),
+    });
+
+  const onUpdateSystemConfig = () => {
+    if (!configForm.key || !configForm.value) {
+      setActionStatus({
+        type: "error",
+        message: "config-update failed: key and value are required",
+      });
+      return;
+    }
+    execute("config-update", () => updateSystemConfig(configForm), {
+      onSuccess: async () => {
+        // Refetch the full list so the UI reflects the DB, not just the
+        // row the save returned.
+        try {
+          const [cfgRes, histRes] = await Promise.all([
+            fetchSystemConfig(),
+            fetchConfigHistory(),
+          ]);
+          setSystemConfigs(Array.isArray(cfgRes.data) ? cfgRes.data : []);
+          setConfigHistory(Array.isArray(histRes.data) ? histRes.data : []);
+        } catch (_) {
+          /* ignore — save already succeeded, refresh is best-effort */
+        }
+      },
+    });
+  };
+
+  const onLoadConfigHistory = () =>
+    execute("config-history", () => fetchConfigHistory(), {
+      onSuccess: (data) => setConfigHistory(Array.isArray(data) ? data : []),
+    });
+
+  const onLoadVisitingHours = () =>
+    execute("visiting-hours-load", () => fetchVisitingHours(), {
+      onSuccess: (data) => setVisitingHours(Array.isArray(data) ? data : []),
+    });
+
+  const onConfigureVisitingHours = () =>
+    execute(
+      "visiting-hours-configure",
+      () => configureVisitingHours(visitingHoursForm),
+      {
+        onSuccess: async () => {
+          try {
+            const res = await fetchVisitingHours();
+            setVisitingHours(Array.isArray(res.data) ? res.data : []);
+          } catch (_) {
+            /* best-effort refresh */
+          }
+        },
+      },
+    );
+
+  const onLoadAccessZones = () =>
+    execute("zones-load", () => fetchAccessZones(), {
+      onSuccess: (data) => setAccessZones(Array.isArray(data) ? data : []),
+    });
+
+  const onConfigureAccessZone = () =>
+    execute("zone-configure", () => configureAccessZone(accessZoneForm), {
+      onSuccess: async () => {
+        try {
+          const res = await fetchAccessZones();
+          setAccessZones(Array.isArray(res.data) ? res.data : []);
+        } catch (_) {
+          /* best-effort refresh */
+        }
+      },
+    });
+
   const metrics = {
     activeVisitors: activeVisitors.length,
     openIncidents: incidentLog.length,
@@ -865,6 +1126,7 @@ export default function useVmsController() {
     onRegisterVisitor,
     onVerifyVisitor,
     onIssuePass,
+    onIssueQrPass,
     onRecordEntry,
     onRecordExit,
     onDenyEntry,
@@ -878,9 +1140,28 @@ export default function useVmsController() {
     onAssignEscort,
     onReleaseEscort,
     onImportVisitors,
+    onLoadImportSample,
     onExportVisitorHistory,
     onDownloadReportPdf,
     onAddToBlacklist,
     onRemoveFromBlacklist,
+    // WF-009: system configuration
+    systemConfigs,
+    configHistory,
+    configForm,
+    setConfigForm,
+    visitingHours,
+    visitingHoursForm,
+    setVisitingHoursForm,
+    accessZones,
+    accessZoneForm,
+    setAccessZoneForm,
+    onLoadSystemConfig,
+    onUpdateSystemConfig,
+    onLoadConfigHistory,
+    onLoadVisitingHours,
+    onConfigureVisitingHours,
+    onLoadAccessZones,
+    onConfigureAccessZone,
   };
 }

@@ -177,7 +177,7 @@ function VmsForm({
                     onChange={(value) =>
                       setRegisterPayload({
                         ...registerPayload,
-                        id_type: value || "passport",
+                        id_type: value || "aadhaar",
                       })
                     }
                     data={idTypeOptions}

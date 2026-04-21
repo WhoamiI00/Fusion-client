@@ -17,10 +17,6 @@ import {
 } from "./vmsExportPdf";
 
 function VmsTable({ visitorRows, recentRegistrations, incidents, staff }) {
-  const onDutyCount = staff.filter(
-    (member) => member.status === "on-duty",
-  ).length;
-
   return (
     <Group align="start" grow>
       <Paper withBorder p="md" radius="md" className="vmsGridPanel">
@@ -78,9 +74,6 @@ function VmsTable({ visitorRows, recentRegistrations, incidents, staff }) {
         <Group justify="space-between" mb="xs">
           <Title order={4}>Security Snapshot</Title>
           <Group gap="xs">
-            <Badge color={onDutyCount < 2 ? "red" : "green"} variant="light">
-              {onDutyCount} on-duty
-            </Badge>
             <Button
               size="xs"
               variant="light"
@@ -120,30 +113,6 @@ function VmsTable({ visitorRows, recentRegistrations, incidents, staff }) {
             </Table>
           </ScrollArea>
         )}
-
-        <Text size="sm" fw={600} mt="md" mb="xs">
-          Personnel Status
-        </Text>
-        <ScrollArea h={170}>
-          <Table withTableBorder withColumnBorders>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>Role</Table.Th>
-                <Table.Th>Status</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {staff.map((member) => (
-                <Table.Tr key={member.id}>
-                  <Table.Td>{member.name}</Table.Td>
-                  <Table.Td>{member.role}</Table.Td>
-                  <Table.Td>{member.status}</Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </ScrollArea>
       </Paper>
 
       <Paper withBorder p="md" radius="md" className="vmsGridPanel">

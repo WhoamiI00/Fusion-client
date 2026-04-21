@@ -8,7 +8,6 @@ import {
   Container,
   Divider,
   Group,
-  List,
   Paper,
   Select,
   SimpleGrid,
@@ -21,12 +20,6 @@ import {
 import LoadingSpinner from "./LoadingSpinner";
 import VmsTable from "./VmsTable";
 import useVmsController from "./useVmsController";
-import {
-  incidentTypeOptions,
-  severityOptions,
-  shiftOptions,
-  staffRoleOptions,
-} from "./helpers";
 import "./module.css";
 
 const reportTypeOptions = [
@@ -108,102 +101,33 @@ function VmsAdminPage() {
         </Paper>
 
         <Paper withBorder p="md" radius="md">
-          <Title order={4}>Monitor Visitor Movement</Title>
-          <Text size="sm" c="dimmed" mt={4}>
-            Pull live visitor activity and run an operations summary.
-          </Text>
-          <Group mt="sm">
-            <Button onClick={ctrl.onRefreshActiveVisitors}>
-              Refresh Active Visitors
-            </Button>
-            <Button variant="outline" onClick={ctrl.onGenerateReport}>
-              Generate Operations Report
-            </Button>
-          </Group>
-        </Paper>
-
-        <Paper withBorder p="md" radius="md">
-          <Title order={4}>Handle Security Issues</Title>
-          <Stack gap="sm" mt="sm">
-            <TextInput
-              label="Visit ID (optional)"
-              value={ctrl.visitId}
-              onChange={(event) => ctrl.setVisitId(event.currentTarget.value)}
-            />
-            <Group grow>
-              <Select
-                label="Incident Severity"
-                value={ctrl.incidentPayload.severity}
-                onChange={(value) =>
-                  ctrl.setIncidentPayload({
-                    ...ctrl.incidentPayload,
-                    severity: value || "medium",
-                  })
-                }
-                data={severityOptions}
-              />
-              <Select
-                label="Incident Type"
-                value={ctrl.incidentPayload.issue_type}
-                onChange={(value) =>
-                  ctrl.setIncidentPayload({
-                    ...ctrl.incidentPayload,
-                    issue_type: value || "policy_violation",
-                  })
-                }
-                data={incidentTypeOptions}
-              />
-            </Group>
-            <TextInput
-              label="Incident Description"
-              value={ctrl.incidentPayload.description}
-              onChange={(event) =>
-                ctrl.setIncidentPayload({
-                  ...ctrl.incidentPayload,
-                  description: event.currentTarget.value,
-                })
-              }
-            />
-            <Button color="orange" onClick={ctrl.onLogIncident}>
-              Log Incident
-            </Button>
-          </Stack>
-        </Paper>
-
-        <Paper withBorder p="md" radius="md">
-          <Title order={5}>Recent Incident Feed</Title>
-          {ctrl.incidentLog.length === 0 ? (
-            <Text size="sm" c="dimmed" mt="sm">
-              No incidents logged yet.
-            </Text>
-          ) : (
-            <List size="sm" mt="sm" spacing="xs">
-              {ctrl.incidentLog.slice(0, 4).map((incident) => (
-                <List.Item key={incident.id}>
-                  [{incident.severity}] {incident.issue_type} for Visit ID{" "}
-                  {incident.visit_id}
-                </List.Item>
-              ))}
-            </List>
-          )}
-        </Paper>
-
-        <Paper withBorder p="md" radius="md">
           <Title order={4}>Manage Blacklist</Title>
           <Text size="sm" c="dimmed" mt={4}>
-            Add or remove blacklist entries. Adding requires VMS admin
-            privileges. Removal deactivates the entry and is recorded in the
-            audit log.
+            Add or remove blacklist entries. Supply either an ID Number or a
+            Visit ID — the server will resolve the visit to its visitor. Adding
+            requires VMS admin privileges. Removal deactivates the entry and is
+            recorded in the audit log.
           </Text>
           <Group mt="sm" align="end" grow>
             <TextInput
               label="ID Number"
-              placeholder="e.g. DL-09-88442"
+              placeholder="e.g. 234567890123"
               value={ctrl.blacklistForm.id_number}
               onChange={(event) =>
                 ctrl.setBlacklistForm({
                   ...ctrl.blacklistForm,
                   id_number: event.currentTarget.value,
+                })
+              }
+            />
+            <TextInput
+              label="Visit ID (alternative)"
+              placeholder="e.g. 42"
+              value={ctrl.blacklistForm.visit_id}
+              onChange={(event) =>
+                ctrl.setBlacklistForm({
+                  ...ctrl.blacklistForm,
+                  visit_id: event.currentTarget.value,
                 })
               }
             />
@@ -283,52 +207,7 @@ function VmsAdminPage() {
         </Paper>
 
         <Paper withBorder p="md" radius="md">
-          <Title order={4}>Manage Security Personnel</Title>
-          <Group mt="sm" align="end" grow>
-            <TextInput
-              label="Staff Name"
-              value={ctrl.newStaffName}
-              onChange={(event) =>
-                ctrl.setNewStaffName(event.currentTarget.value)
-              }
-            />
-            <Select
-              label="Role"
-              value={ctrl.newStaffRole}
-              onChange={(value) =>
-                ctrl.setNewStaffRole(value || "Gate Officer")
-              }
-              data={staffRoleOptions}
-            />
-            <Select
-              label="Shift"
-              value={ctrl.newStaffShift}
-              onChange={(value) => ctrl.setNewStaffShift(value || "Morning")}
-              data={shiftOptions}
-            />
-            <Button onClick={ctrl.onAddSecurityPersonnel}>Add Staff</Button>
-          </Group>
-          <Stack mt="md" gap="xs">
-            {ctrl.securityPersonnel.map((member) => (
-              <Group key={member.id} justify="space-between">
-                <Text size="sm">
-                  {member.name} · {member.role} · {member.shift}
-                </Text>
-                <Button
-                  size="xs"
-                  variant="light"
-                  color={member.status === "on-duty" ? "green" : "gray"}
-                  onClick={() => ctrl.onTogglePersonnelStatus(member.id)}
-                >
-                  {member.status}
-                </Button>
-              </Group>
-            ))}
-          </Stack>
-        </Paper>
-
-        <Paper withBorder p="md" radius="md">
-          <Title order={4}>Manage VIP Permission</Title>
+          <Title order={4}>Grant VIP Status</Title>
           <Text size="sm" c="dimmed" mt={4}>
             Grant VIP status to an active visit. Enter the Visit ID; enable
             bypass only if authorised (requires VIP bypass privilege).
@@ -360,100 +239,9 @@ function VmsAdminPage() {
             <Button onClick={ctrl.onGrantVipAccess}>Grant VIP Status</Button>
           </Group>
           <Text size="xs" c="dimmed" mt={4}>
-            BR-046: setting VIP level ≥ configured escort threshold auto-assigns
-            an available qualified escort.
+            Setting VIP level ≥ configured escort threshold auto-assigns an
+            available qualified escort.
           </Text>
-          <Stack mt="md" gap="xs">
-            {ctrl.vipPermissions.length === 0 && (
-              <Text size="sm" c="dimmed">
-                No VIP visits yet.
-              </Text>
-            )}
-            {ctrl.vipPermissions.map((record) => (
-              <Group key={record.id} justify="space-between">
-                <Text size="sm">
-                  Visit #{record.visit_id} · {record.visitor} ·{" "}
-                  {record.access_level}
-                </Text>
-                <Button
-                  size="xs"
-                  variant="light"
-                  color={record.active ? "teal" : "gray"}
-                  onClick={() => ctrl.onToggleVipPermission(record.id)}
-                >
-                  {record.active ? "active" : "inactive"}
-                </Button>
-              </Group>
-            ))}
-          </Stack>
-        </Paper>
-
-        <Paper withBorder p="md" radius="md">
-          <Title order={4}>VIP Escort Assignment (BR-046)</Title>
-          <Text size="sm" c="dimmed" mt={4}>
-            Assign a dedicated escort to a VIP visit whose vip_level meets the
-            configured escort threshold. Leave escort empty to auto-pick the
-            first available qualified officer.
-          </Text>
-          <Group mt="sm" align="end" grow>
-            <TextInput
-              label="Visit ID"
-              placeholder="e.g. 42"
-              value={ctrl.escortVisitIdInput}
-              onChange={(event) =>
-                ctrl.setEscortVisitIdInput(event.currentTarget.value)
-              }
-            />
-            <Select
-              label="Escort (optional)"
-              placeholder="auto-pick available"
-              value={ctrl.escortSelectedId || null}
-              onChange={(value) => ctrl.setEscortSelectedId(value || "")}
-              data={ctrl.availableEscorts.map((e) => ({
-                value: String(e.id),
-                label: `${e.name || `Staff #${e.id}`}${
-                  e.department ? ` · ${e.department}` : ""
-                }`,
-              }))}
-              clearable
-              searchable
-            />
-            <TextInput
-              label="Notes"
-              placeholder="Protocol details"
-              value={ctrl.escortNotesInput}
-              onChange={(event) =>
-                ctrl.setEscortNotesInput(event.currentTarget.value)
-              }
-            />
-            <Button onClick={ctrl.onAssignEscort}>Assign Escort</Button>
-          </Group>
-          <Stack mt="md" gap="xs">
-            {ctrl.escortAssignments.length === 0 && (
-              <Text size="sm" c="dimmed">
-                No active escort assignments.
-              </Text>
-            )}
-            {ctrl.escortAssignments.map((a) => (
-              <Group key={a.id} justify="space-between">
-                <Text size="sm">
-                  #{a.id} · Visit {a.visit} · Escort ID {a.escort || "—"} ·
-                  assigned {a.assigned_at?.slice(0, 16).replace("T", " ")}
-                  {a.released_at ? " · released" : ""}
-                </Text>
-                {!a.released_at && (
-                  <Button
-                    size="xs"
-                    variant="light"
-                    color="red"
-                    onClick={() => ctrl.onReleaseEscort(a.id)}
-                  >
-                    Release
-                  </Button>
-                )}
-              </Group>
-            ))}
-          </Stack>
         </Paper>
 
         <Paper withBorder p="md" radius="md">
@@ -596,6 +384,9 @@ function VmsAdminPage() {
                 { value: "json", label: "JSON" },
               ]}
             />
+            <Button variant="light" onClick={ctrl.onLoadImportSample}>
+              Load Sample
+            </Button>
             <Button onClick={ctrl.onImportVisitors}>Run Import</Button>
           </Group>
           <Textarea
@@ -684,21 +475,291 @@ function VmsAdminPage() {
         </Paper>
 
         <Paper withBorder p="md" radius="md">
-          <Title order={4}>Administrative Actions</Title>
+          <Title order={4}>System Configuration</Title>
+          <Text size="sm" c="dimmed" mt={4}>
+            Super Admin only. Server validates values, detects conflicts,
+            refreshes cache, logs the change and notifies users.
+          </Text>
           <Group mt="sm">
-            <Button onClick={ctrl.onRefreshActiveVisitors}>
-              View Visitor Records
+            <Button variant="light" onClick={ctrl.onLoadSystemConfig}>
+              Load Current Config
+            </Button>
+            <Button variant="light" onClick={ctrl.onLoadConfigHistory}>
+              Load Change History
             </Button>
           </Group>
+          <Group mt="md" align="end" grow>
+            <TextInput
+              label="Config Key"
+              placeholder="e.g. escort_threshold"
+              value={ctrl.configForm.key}
+              onChange={(event) =>
+                ctrl.setConfigForm({
+                  ...ctrl.configForm,
+                  key: event.currentTarget.value,
+                })
+              }
+            />
+            <TextInput
+              label="Value"
+              placeholder="e.g. 3"
+              value={ctrl.configForm.value}
+              onChange={(event) =>
+                ctrl.setConfigForm({
+                  ...ctrl.configForm,
+                  value: event.currentTarget.value,
+                })
+              }
+            />
+            <TextInput
+              label="Description (optional)"
+              value={ctrl.configForm.description}
+              onChange={(event) =>
+                ctrl.setConfigForm({
+                  ...ctrl.configForm,
+                  description: event.currentTarget.value,
+                })
+              }
+            />
+            <Button onClick={ctrl.onUpdateSystemConfig}>Apply Change</Button>
+          </Group>
+          {ctrl.systemConfigs.length > 0 && (
+            <Stack mt="md" gap="xs">
+              <Text size="xs" c="dimmed">
+                Current configuration
+              </Text>
+              {ctrl.systemConfigs.map((cfg) => (
+                <Group key={cfg.id || cfg.key} justify="space-between">
+                  <Text size="sm">
+                    <strong>{cfg.key}</strong> = {cfg.value}
+                  </Text>
+                  {cfg.description && (
+                    <Text size="xs" c="dimmed">
+                      {cfg.description}
+                    </Text>
+                  )}
+                </Group>
+              ))}
+            </Stack>
+          )}
+          {ctrl.configHistory.length > 0 && (
+            <Stack mt="md" gap="xs">
+              <Text size="xs" c="dimmed">
+                Change history
+              </Text>
+              {ctrl.configHistory.slice(0, 8).map((row) => (
+                <Text key={row.id} size="xs" c="dimmed">
+                  #{row.id} · {row.old_value} → {row.new_value} ·{" "}
+                  {row.changed_at
+                    ? new Date(row.changed_at).toLocaleString()
+                    : "-"}
+                </Text>
+              ))}
+            </Stack>
+          )}
+        </Paper>
+
+        <Paper withBorder p="md" radius="md">
+          <Title order={4}>Configure Visiting Hours</Title>
+          <Text size="sm" c="dimmed" mt={4}>
+            Day 0 = Monday … 6 = Sunday. Use is_holiday to mark the day closed
+            and pin a holiday name. Requires VMS admin.
+          </Text>
+          <Group mt="sm">
+            <Button variant="light" onClick={ctrl.onLoadVisitingHours}>
+              Load Visiting Hours
+            </Button>
+          </Group>
+          <Group mt="md" align="end" grow>
+            <TextInput
+              label="Day of Week (0–6)"
+              type="number"
+              value={ctrl.visitingHoursForm.day_of_week}
+              onChange={(event) =>
+                ctrl.setVisitingHoursForm({
+                  ...ctrl.visitingHoursForm,
+                  day_of_week: Number(event.currentTarget.value) || 0,
+                })
+              }
+            />
+            <TextInput
+              label="Start Time"
+              placeholder="HH:MM"
+              value={ctrl.visitingHoursForm.start_time}
+              onChange={(event) =>
+                ctrl.setVisitingHoursForm({
+                  ...ctrl.visitingHoursForm,
+                  start_time: event.currentTarget.value,
+                })
+              }
+            />
+            <TextInput
+              label="End Time"
+              placeholder="HH:MM"
+              value={ctrl.visitingHoursForm.end_time}
+              onChange={(event) =>
+                ctrl.setVisitingHoursForm({
+                  ...ctrl.visitingHoursForm,
+                  end_time: event.currentTarget.value,
+                })
+              }
+            />
+            <TextInput
+              label="Holiday Name (optional)"
+              value={ctrl.visitingHoursForm.holiday_name}
+              onChange={(event) =>
+                ctrl.setVisitingHoursForm({
+                  ...ctrl.visitingHoursForm,
+                  holiday_name: event.currentTarget.value,
+                })
+              }
+            />
+          </Group>
+          <Group mt="sm">
+            <Checkbox
+              label="Is Holiday (closed)"
+              checked={ctrl.visitingHoursForm.is_holiday}
+              onChange={(event) =>
+                ctrl.setVisitingHoursForm({
+                  ...ctrl.visitingHoursForm,
+                  is_holiday: event.currentTarget.checked,
+                })
+              }
+            />
+            <Checkbox
+              label="Active"
+              checked={ctrl.visitingHoursForm.active}
+              onChange={(event) =>
+                ctrl.setVisitingHoursForm({
+                  ...ctrl.visitingHoursForm,
+                  active: event.currentTarget.checked,
+                })
+              }
+            />
+            <Button onClick={ctrl.onConfigureVisitingHours}>
+              Save Visiting Hours
+            </Button>
+          </Group>
+          {ctrl.visitingHours.length > 0 && (
+            <Stack mt="md" gap="xs">
+              {ctrl.visitingHours.map((h) => (
+                <Text key={h.id || h.day_of_week} size="sm">
+                  Day {h.day_of_week}: {h.start_time}–{h.end_time}
+                  {h.is_holiday ? ` · Holiday: ${h.holiday_name || "-"}` : ""}
+                  {h.active ? "" : " · inactive"}
+                </Text>
+              ))}
+            </Stack>
+          )}
+        </Paper>
+
+        <Paper withBorder p="md" radius="md">
+          <Title order={4}>Configure Access Zones</Title>
+          <Text size="sm" c="dimmed" mt={4}>
+            Define a zone and its restrictions. `is_restricted` means visitors
+            need the zone explicitly listed on their pass; `requires_vip` locks
+            it to VIP passes. Requires VMS admin.
+          </Text>
+          <Group mt="sm">
+            <Button variant="light" onClick={ctrl.onLoadAccessZones}>
+              Load Access Zones
+            </Button>
+          </Group>
+          <Group mt="md" align="end" grow>
+            <TextInput
+              label="Zone Name"
+              placeholder="e.g. server_room"
+              value={ctrl.accessZoneForm.name}
+              onChange={(event) =>
+                ctrl.setAccessZoneForm({
+                  ...ctrl.accessZoneForm,
+                  name: event.currentTarget.value,
+                })
+              }
+            />
+            <TextInput
+              label="Description"
+              value={ctrl.accessZoneForm.description}
+              onChange={(event) =>
+                ctrl.setAccessZoneForm({
+                  ...ctrl.accessZoneForm,
+                  description: event.currentTarget.value,
+                })
+              }
+            />
+          </Group>
+          <Group mt="sm">
+            <Checkbox
+              label="Requires VIP"
+              checked={ctrl.accessZoneForm.requires_vip}
+              onChange={(event) =>
+                ctrl.setAccessZoneForm({
+                  ...ctrl.accessZoneForm,
+                  requires_vip: event.currentTarget.checked,
+                })
+              }
+            />
+            <Checkbox
+              label="Requires Escort"
+              checked={ctrl.accessZoneForm.requires_escort}
+              onChange={(event) =>
+                ctrl.setAccessZoneForm({
+                  ...ctrl.accessZoneForm,
+                  requires_escort: event.currentTarget.checked,
+                })
+              }
+            />
+            <Checkbox
+              label="Is Restricted"
+              checked={ctrl.accessZoneForm.is_restricted}
+              onChange={(event) =>
+                ctrl.setAccessZoneForm({
+                  ...ctrl.accessZoneForm,
+                  is_restricted: event.currentTarget.checked,
+                })
+              }
+            />
+            <Checkbox
+              label="Active"
+              checked={ctrl.accessZoneForm.active}
+              onChange={(event) =>
+                ctrl.setAccessZoneForm({
+                  ...ctrl.accessZoneForm,
+                  active: event.currentTarget.checked,
+                })
+              }
+            />
+            <Button onClick={ctrl.onConfigureAccessZone}>Save Zone</Button>
+          </Group>
+          {ctrl.accessZones.length > 0 && (
+            <Stack mt="md" gap="xs">
+              {ctrl.accessZones.map((z) => (
+                <Group key={z.id || z.name} justify="space-between">
+                  <Text size="sm">
+                    <strong>{z.name}</strong>
+                    {z.requires_vip ? " · VIP" : ""}
+                    {z.requires_escort ? " · Escort" : ""}
+                    {z.is_restricted ? " · Restricted" : ""}
+                    {z.active ? "" : " · inactive"}
+                  </Text>
+                  {z.description && (
+                    <Text size="xs" c="dimmed">
+                      {z.description}
+                    </Text>
+                  )}
+                </Group>
+              ))}
+            </Stack>
+          )}
         </Paper>
       </Stack>
 
       <Divider my="lg" />
       <VmsTable
         visitorRows={ctrl.activeVisitors}
-        recentRegistrations={[]}
+        recentRegistrations={ctrl.recentRegistrations}
         incidents={ctrl.incidentLog}
-        staff={ctrl.securityPersonnel}
+        staff={[]}
       />
     </Container>
   );
